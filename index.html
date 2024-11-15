@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>휘매쓰 연산 챌린지!</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-MML-AM_CHTML"></script>
+    <script type="text/x-mathjax-config">
+        MathJax.Hub.Config({
+            tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}
+        });
+    </script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+        }
+        #gameContainer {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        h1 {
+            color: #333;
+        }
+        #difficultySelection, #gameContent {
+            margin-top: 20px;
+        }
+        button {
+            background-color: #ff7f50;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        #energyBarContainer {
+            width: 100%;
+            height: 20px;
+            background-color: #ddd;
+            border-radius: 10px;
+            margin-top: 10px;
+        }
+        #energyBar {
+            height: 100%;
+            width: 100%;
+            background-color: #4CAF50;
+            border-radius: 10px;
+            transition: width 0.1s linear;
+        }
+        #questionDisplay {
+            font-size: 24px;
+            margin: 20px 0;
+        }
+        #answerInput {
+            font-size: 18px;
+            padding: 5px;
+            width: 100px;
+        }
+        #scoreBoard, #timeDisplay, #chanceDisplay {
+            margin: 10px 0;
+        }
+        #resultMessage {
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        #watermark {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            font-size: 12px;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <h1>휘매쓰 연산 챌린지!</h1>
+        <div id="difficultySelection">
+            <h2>난이도를 선택하세요:</h2>
+            <button onclick="startGame('최상')">최상</button>
+            <button onclick="startGame('상')">상</button>
+            <button onclick="startGame('중')">중</button>
+            <button onclick="startGame('하')">하</button>
+        </div>
+        <div id="gameContent" style="display: none;">
+            <div id="scoreBoard">점수: <span id="score">0</span></div>
+            <div id="timeDisplay">전체 게임 시간: <span id="totalTime">0</span>초</div>
+            <div id="chanceDisplay">남은 기회: <span id="chances">3</span></div>
+            <div id="energyBarContainer">
+                <div id="energyBar"></div>
+            </div>
+            <div id="questionDisplay"></div>
+            <input type="number" id="answerInput" placeholder="답을 입력하세요">
+            <button onclick="checkAnswer()">제출</button>
+            <div id="resultMessage"></div>
+        </div>
+    </div>
+    <div id="watermark">휘매쓰</div>
+
+    <script>
+        let score = 0;
+        let mistakes = 0;
+        let currentQuestion;
+        let timeLimit;
+        let timer;
+        let gameInterval;
+        let totalGameTime = 0;
+        let totalGameTimer;
+        let difficulty;
+        let pointsPerQuestion;
+        let questionsAnswered = 0;
+
+        const predefinedQuestions = [
+            {question: "867 - 228 - 123", answer: 516},
+            {question: "954 - 316 - 215", answer: 423},
+            {question: "732 - 145 - 268", answer: 319},
+            {question: "615 - 237 - 149", answer: 229},
+            {question: "893 - 456 - 178", answer: 259},
+            {question: "576 - 189 - 234", answer: 153},
+            {question: "741 - 358 - 162", answer: 221},
+            {question: "928 - 473 - 216", answer: 239},
+            {question: "685 - 297 - 153", answer: 235},
+            {question: "539 - 184 - 226", answer: 129},
+            {question: "796 - 352 - 187", answer: 257},
+            {question: "624 - 175 - 289", answer: 160},
+            {question: "857 - 436 - 192", answer: 229},
+            {question: "913 - 548 - 137", answer: 228},
+            {question: "762 - 295 - 318", answer: 149},
+            {question: "845 - 367 - 249", answer: 229},
+            {question: "678 - 213 - 325", answer: 140},
+            {question: "936 - 457 - 281", answer: 198},
+            {question: "591 - 168 - 274", answer: 149},
+            {question: "783 - 426 - 195", answer: 162},
+            {question: "869 - 374 - 256", answer: 239},
+            {question: "725 - 198 - 317", answer: 210},
+            {question: "647 - 283 - 135", answer: 229},
+            {question: "892 - 456 - 217", answer: 219},
+            {question: "573 - 186 - 248", answer: 139},
+            {question: "918 - 465 - 273", answer: 180},
+            {question: "736 - 259 - 328", answer: 149},
+            {question: "854 - 397 - 216", answer: 241},
+            {question: "629 - 175 - 293", answer: 161},
+            {question: "781 - 346 - 215", answer: 220},
+            {question: "937 - 468 - 259", answer: 210},
+            {question: "682 - 247 - 315", answer: 120},
+            {question: "815 - 379 - 226", answer: 210},
+            {question: "563 - 184 - 249", answer: 130},
+            {question: "749 - 328 - 192", answer: 229},
+            {question: "896 - 457 - 219", answer: 220},
+            {question: "671 - 238 - 314", answer: 119},
+            {question: "924 - 567 - 178", answer: 179},
+            {question: "758 - 326 - 213", answer: 219},
+            {question: "835 - 469 - 237", answer: 129},
+            {question: "692 - 275 - 308", answer: 109},
+            {question: "947 - 583 - 145", answer: 219},
+            {question: "576 - 198 - 259", answer: 119},
+            {question: "813 - 457 - 226", answer: 130},
+            {question: "659 - 284 - 175", answer: 200},
+            {question: "925 - 468 - 237", answer: 220},
+            {question: "784 - 359 - 216", answer: 209},
+            {question: "638 - 195 - 324", answer: 119},
+            {question: "871 - 436 - 215", answer: 220},
+            {question: "729 - 348 - 162", answer: 219}
+        ];
+        
+        function startGame(selectedDifficulty) {
+            difficulty = selectedDifficulty;
+            switch(difficulty) {
+                case '최상':
+                    timeLimit = 20;
+                    pointsPerQuestion = 20;
+                    break;
+                case '상':
+                    timeLimit = 30;
+                    pointsPerQuestion = 15;
+                    break;
+                case '중':
+                    timeLimit = 40;
+                    pointsPerQuestion = 13;
+                    break;
+                case '하':
+                    timeLimit = Infinity;
+                    pointsPerQuestion = 10;
+                    break;
+            }
+            
+            document.getElementById('difficultySelection').style.display = 'none';
+            document.getElementById('gameContent').style.display = 'block';
+            
+            resetGame();
+            nextQuestion();
+            startTimers();
+        }
+        
+        function resetGame() {
+            score = 0;
+            mistakes = 0;
+            questionsAnswered = 0;
+            totalGameTime = 0;
+            updateDisplay();
+        }
+        
+        function startTimers() {
+            if (gameInterval) clearInterval(gameInterval);
+            if (totalGameTimer) clearInterval(totalGameTimer);
+            
+            if (timeLimit !== Infinity) {
+                gameInterval = setInterval(updateEnergyBar, 100);
+            }
+            totalGameTimer = setInterval(() => {
+                totalGameTime++;
+                document.getElementById('totalTime').textContent = totalGameTime;
+            }, 1000);
+        }
+        
+        function updateEnergyBar() {
+            if (timeLimit !== Infinity) {
+                timer -= 0.1;
+                const energyBar = document.getElementById('energyBar');
+                const width = (timer / timeLimit) * 100;
+                energyBar.style.width = width + '%';
+                
+                if (timer <= 0) {
+                    clearInterval(gameInterval);
+                    mistakes++;
+                    updateDisplay();
+                    if (mistakes >= 3) {
+                        endGame();
+                    } else {
+                        document.getElementById('resultMessage').textContent = '시간 초과!';
+                        setTimeout(nextQuestion, 1000);
+                    }
+                }
+            }
+        }
+        
+        function nextQuestion() {
+            questionsAnswered++;
+            if (timeLimit !== Infinity) {
+                timeLimit *= 0.99;  // 시간이 1%씩 빨라짐
+                timer = timeLimit;
+            }
+            
+            if (questionsAnswered <= 50) {
+                currentQuestion = predefinedQuestions[questionsAnswered - 1];
+            } else {
+                let num1, num2, num3, answer;
+                do {
+                    num1 = Math.floor(Math.random() * 900) + 100;
+                    num2 = Math.floor(Math.random() * (num1 - 100)) + 1;
+                    num3 = Math.floor(Math.random() * (num1 - num2 - 1)) + 1;
+                    answer = num1 - num2 - num3;
+                } while (answer <= 0);
+                
+                currentQuestion = {question: `${num1} - ${num2} - ${num3}`, answer: answer};
+            }
+            
+            document.getElementById('questionDisplay').innerHTML = `$${currentQuestion.question} = ?$`;
+            document.getElementById('answerInput').value = '';
+            document.getElementById('resultMessage').textContent = '';
+            
+            MathJax.Hub.Queue(["Typeset", MathJax.Hub, "questionDisplay"]);
+
+            const energyBar = document.getElementById('energyBar');
+            energyBar.style.width = '100%';
+            
+            startTimers();
+        }
+        
+        function checkAnswer() {
+            clearInterval(gameInterval);
+            const userAnswer = parseInt(document.getElementById('answerInput').value);
+            if (userAnswer === currentQuestion.answer) {
+                score += pointsPerQuestion;
+                document.getElementById('resultMessage').textContent = '정답입니다!';
+            } else {
+                mistakes++;
+                document.getElementById('resultMessage').innerHTML = `틀렸습니다. 정답은 ${currentQuestion.answer}입니다.`;
+            }
+            updateDisplay();
+            
+            if (mistakes >= 3) {
+                endGame();
+            } else {
+                setTimeout(nextQuestion, 1000);
+            }
+        }
+        
+        function updateDisplay() {
+            document.getElementById('score').textContent = score;
+            document.getElementById('chances').textContent = 3 - mistakes;
+        }
+        
+        function endGame() {
+            clearInterval(gameInterval);
+            clearInterval(totalGameTimer);
+            document.getElementById('gameContent').innerHTML = `
+                <h2>게임 종료!</h2>
+                <p>최종 점수: ${score}</p>
+                <p>총 게임 시간: ${totalGameTime}초</p>
+                <p>난이도: ${difficulty}</p>
+                <button onclick="location.reload()">다시 시작</button>
+            `;
+        }
+    </script>
+</body>
+</html>
